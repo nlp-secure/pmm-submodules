@@ -48,7 +48,7 @@
 	branch = master
 [submodule "pmm-server"]
 	path = sources/pmm-server
-	url = https://github.com/percona/pmm-server
+	url = https://github.com/nlp-secure/pmm-server
 	branch = master
 [submodule "pmm-server-packaging"]
 	path = sources/pmm-server-packaging
