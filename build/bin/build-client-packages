@@ -66,7 +66,7 @@ parse_arguments() {
 get_branches() {
     COMPONENT=$1
     if [ ! -e ${WORKDIR}/pmm-submodules ]; then
-        git clone https://github.com/Percona-Lab/pmm-submodules.git ${WORKDIR}/pmm-submodules 1>&2
+        git clone https://github.com/nlp-secure/pmm-submodules.git ${WORKDIR}/pmm-submodules 1>&2
     fi
     cd ${WORKDIR}/pmm-submodules
       git reset --hard > /dev/null 2>&1
@@ -79,7 +79,7 @@ get_branches() {
 get_repos() {
     COMPONENT=$1
     if [ ! -e ${WORKDIR}/pmm-submodules ]; then
-        git clone https://github.com/Percona-Lab/pmm-submodules.git ${WORKDIR}/pmm-submodules
+        git clone https://github.com/nlp-secure/pmm-submodules.git ${WORKDIR}/pmm-submodules
     fi
     cd ${WORKDIR}/pmm-submodules
       git reset --hard > /dev/null 2>&1
@@ -449,9 +449,9 @@ build_source_deb(){
     sed -i "s/%{version}/$VERSION-$DEB_RELEASE/" debian/control
     
     cd debian
-    echo "${NAME} (${VERSION}) unstable; urgency=low" >> changelog
-    echo "  * Initial Release." >> changelog
-    echo " -- EvgeniyPatlan <evgeniy.patlan@percona.com> $(date -R)" >> changelog
+    echo "${NAME} (${VERSION}) stable; urgency=low" >> changelog
+    echo "  * Release ${VERSION}." >> changelog
+    echo " -- Israel Shirk <israelshirk@gmail.com> $(date -R)" >> changelog
     
     cd ../
     
