@@ -1,0 +1,57 @@
+sudo: required
+language: bash
+git:
+  depth: 1
+
+before_install:
+  - . test-helpers/helpers.sh
+  - utils_setup
+  - docker_setup
+
+#  - gce_setup
+
+install: true
+
+script:
+  - env
+  - export pmm_version=$(cat VERSION)
+  - mkdir results && chmod 0777 results
+  - |
+    # This takes a while, so only run it on cron jobs.
+    if [ "$TRAVIS_EVENT_TYPE" == "cron" ]; then
+      travis_wait 30 bash -c './build/bin/build-rpmbuild-docker > /tmp/rpmbuild-docker-output'
+      docker_login
+      docker push $RPMBUILD_DOCKER_IMAGE:latest
+    fi
+  - ./build/bin/build-client 2>&1 | tee /tmp/build-client-output | grep -E '(rpm|result)' | grep -v github.com | grep -v BUILDROOT
+  - export IMAGE=debian:stretch
+  - 'printf "FROM $IMAGE\nRUN apt-get -y update && apt-get -y upgrade && apt-get -y install git lsb-release devscripts dh-make\n " | docker build -t $IMAGE -'
+  - ./build/bin/build-client-sdeb $IMAGE 2>&1 | tee /tmp/build-client-sdeb-output | grep -E '(rpm|result)' | grep -v github.com | grep -v BUILDROOT
+  - ./build/bin/build-client-deb $IMAGE 2>&1 | tee /tmp/build-client-deb-output | grep -E '(rpm|result)' | grep -v github.com | grep -v BUILDROOT
+  - export IMAGE=debian:wheezy
+  - 'printf "FROM $IMAGE\nRUN apt-get -y update && apt-get -y upgrade && apt-get -y install git lsb-release devscripts dh-make\n" | docker build -t $IMAGE -'
+  - ./build/bin/build-client-sdeb $IMAGE 2>&1 | tee /tmp/build-client-sdeb-output | grep -E '(rpm|result)' | grep -v github.com | grep -v BUILDROOT
+  - ./build/bin/build-client-deb $IMAGE 2>&1 | tee /tmp/build-client-deb-output | grep -E '(rpm|result)' | grep -v github.com | grep -v BUILDROOT
+  - unset IMAGE
+  - ./build/bin/build-server 2>&1 | tee /tmp/build-server-output | grep -E '(rpm|result)' | grep -v github.com | grep -v BUILDROOT
+  - tar -czf tmp/pmm-server.tgz -C tmp pmm-server
+  - tar -czf tmp/client-packages.tgz -C results srpm rpm deb source_deb
+
+deploy:
+  - provider: releases
+    api_key:
+      secure: gE6lxUkp3lHL4StA+9tTj1cBJzEqqaSu0OJ+EXT/Q6Gti5h5kI6uq7LQZFFmhPKL6GDAC+0ntRXIwiyeHUayjPPKdoJiHnAambbOar7hqsxYfeRKPU0MFvrgeMpdiuJsGma4SjFRol7p7fDlGoPY0JnpLx1fiJQcDXfs30Gmud690TUh8WMxlnyu/BG2CgtKhRhVbJOfhUFh/caU1C+5Prff+P4eXatsuRaMjzzidSzUibKULllw1GQydh1LJkV0alRfuSsOU+AtOm+fn9Ftx0JhqMDARPCJIXdu8LWZ0Ihs4IwzZhv5SdTDHew+lYGeAEpTaO71TymZUkstiUvfVVrPXTryo1aV/lNWyJTfTrff9hmWkX7BlLm21/CVXaJv76dccW6vyeYYvmrEvmMyUl0LCdf56iv/lGp7fE0aWVxxQbHzxGy0M3/d5fHq5wE8e+7MEoQ5pOQcq6x9jZf2BVyZdIHxRo54GghgI/3qhYoBkXO5m6xkjKbPaXFPQAqVdiE7FGP9aulAv80ui1PnNRcoK8OC3IXYamUkBDmh9jE3MZ45ETMXX5Dmh/eaxEoQ8XdHLni7MCMBflYnvGW+17VKX8EfTe3LX1pXGhOndCKv6K/KgJFKszS+DCILpO1ehH+oFvw2/p8P+SiZJQfyreRgandq6tEP1YYuz7ZXYbw=
+    file_glob: true
+    file:
+      - tmp/pmm-server.tgz
+      - results/rpm/*rpm
+      - results/deb/*deb
+      - tmp/client-packages.tgz
+    skip_cleanup: true
+    on:
+      tags: true
+  - provider: script
+    skip_cleanup: true
+    script: bash -c ". test-helpers/helpers.sh; docker_login; set -x; docker tag ${DOCKER_TAG}:latest ${DOCKER_TAG}:${TRAVIS_TAG}; docker push ${DOCKER_TAG}:latest; docker push ${DOCKER_TAG}:${TRAVIS_TAG}"
+    on:
+      tags: true
